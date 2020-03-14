@@ -120,7 +120,7 @@ function findReplacement(editor: TextEditor, content: string, value: string, exp
     const result = expression ? expression.exec(content) : null;
     if (result !== null && result.length) {
         const match = result[0];
-        if (match) {
+        if (match && match != value) {
             const index = result.index;
             const startPosition = editor.document.positionAt(index);
             const endPosition = editor.document.positionAt(index + match.length);
@@ -226,8 +226,9 @@ function getReplacementValue(globs: { [glob: string]: string }, fsPath: string):
     return undefined;
 }
 
-export async function updateMetadataDate() {
+export async function updateMetadataDate(nag?: Boolean) {
     const editor = window.activeTextEditor;
+    let update = true;
     if (!editor) {
         noActiveEditorMessage();
         return;
@@ -241,8 +242,19 @@ export async function updateMetadataDate() {
     if (content) {
         const replacement = findReplacement(editor, content, `ms.date: ${toShortDate(new Date())}`, msDateRegex);
         if (replacement) {
-            await applyReplacements([replacement], editor);
-            await saveAndSendTelemetry();
+            if (nag === true) {
+                await showInputBox().then((res) => {
+                    if (res === "No") {
+                        update = false;
+                    }
+                })
+            }
+            if (update === true) {
+                await applyReplacements([replacement], editor);
+                if (nag != true) {
+                    await saveAndSendTelemetry();
+                }
+            }
         }
     }
 }
@@ -262,4 +274,15 @@ function toShortDate(date: Date) {
     const dayStr = day.length > 1 ? day : `0${day}`;
 
     return `${monthStr}/${dayStr}/${year}`;
+}
+
+export async function showInputBox() {
+    const result = await window.showInputBox({
+        value: 'Warning! ms.date is not up-to-date.  Do you want to update the date?',
+        placeHolder: 'Yes/No',
+        validateInput: text => {
+            return text.match(/Yes|No/) ? text : null;
+        }
+    });
+    return result;
 }

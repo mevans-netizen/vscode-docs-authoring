@@ -6,7 +6,7 @@
  Logging, Error Handling, VS Code window updates, etc.
 */
 
-import { CancellationToken, commands, CompletionItem, ConfigurationTarget, ExtensionContext, languages, TextDocument, window, workspace, Uri } from "vscode";
+import { CancellationToken, commands, CompletionItem, ConfigurationTarget, Disposable, ExtensionContext, languages, TextDocument, TextDocumentWillSaveEvent, window, workspace, Uri } from "vscode";
 import * as vscode from "vscode";
 import { insertAlertCommand } from "./controllers/alert-controller";
 import { boldFormattingCommand } from "./controllers/bold-controller";
@@ -20,6 +20,7 @@ import { insertListsCommands } from "./controllers/list-controller";
 import { getMasterRedirectionCommand } from "./controllers/master-redirect-controller";
 import { insertLinksAndMediaCommands } from "./controllers/media-controller";
 import { insertMetadataCommands } from "./controllers/metadata-controller";
+import { updateMetadataDate } from "./controllers/metadata-controller";
 import { noLocCompletionItemsMarkdown, noLocCompletionItemsMarkdownYamlHeader, noLocCompletionItemsYaml, noLocTextCommand } from "./controllers/no-loc-controller";
 import { previewTopicCommand } from "./controllers/preview-controller";
 import { quickPickMenuCommand } from "./controllers/quick-pick-menu-controller";
@@ -63,6 +64,10 @@ export function activate(context: ExtensionContext) {
 
     // Update markdownlint.config to fix MD025 issue
     addFrontMatterTitle();
+
+    //
+    let willSaveTextDocumentListener: Disposable;
+    willSaveTextDocumentListener = workspace.onWillSaveTextDocument(willSaveTextDocument);
 
     // Creates an array of commands from each command file.
     const AuthoringCommands: any = [];
@@ -142,6 +147,7 @@ export function activate(context: ExtensionContext) {
                 });
         }
     });
+
 }
 
 export function installedExtensionsCheck() {
@@ -228,6 +234,12 @@ function setupAutoComplete() {
             }
         },
     });
+}
+
+function willSaveTextDocument(e: TextDocumentWillSaveEvent) {
+    e.waitUntil(
+        updateMetadataDate(true)
+    );
 }
 
 // this method is called when your extension is deactivated
